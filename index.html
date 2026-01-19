@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SE Demo Environment - GranularContent v7</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- JS Libraries -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.min.js"></script>
+    <style>
+        textarea#mermaid-code{
+            height: 1000px;!important
+        }
+        /* Monochromatic Theme with Yellow Accent */
+        :root {
+            --primary-color: #1F2937; /* Dark Grey/Charcoal */
+            --accent-color: #FBBF24; /* Canary Yellow */
+            --accent-light: #FEF3C7; /* Light Yellow for hover */
+            --background-color: #F9FAFB; /* Off-White */
+            --card-bg-color: #FFFFFF;
+            --text-primary: #111827;
+            --text-secondary: #6B7280;
+            --border-color: #E5E7EB;
+            --card-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --card-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .main-container { display: flex; height: 100vh; }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 240px; background-color: var(--card-bg-color);
+            border-right: 1px solid var(--border-color);
+            padding: 20px; display: flex; flex-direction: column;
+            flex-shrink: 0; transition: transform 0.3s ease; z-index: 1001;
+            box-shadow: 0 0 15px rgba(0,0,0,0.03);
+        }
+        .sidebar-header {
+            font-size: 24px; font-weight: 700; margin-bottom: 30px;
+            color: var(--primary-color);
+        }
+        .sidebar-nav ul { list-style-type: none; padding: 0; margin: 0; }
+        .sidebar-nav li a {
+            display: flex; align-items: center; padding: 10px 15px; text-decoration: none;
+            color: var(--text-secondary); border-radius: 6px; margin-bottom: 5px;
+            font-weight: 500; transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-nav li a:hover {
+            background-color: var(--background-color);
+            color: var(--primary-color);
+        }
+        .sidebar-nav li a.active {
+            background-color: var(--accent-light);
+            color: #92400E; /* Darker Yellow/Brown for text on light yellow */
+            border-left: 3px solid var(--accent-color);
+            font-weight: 600;
+        }
+        .nav-section-title {
+            font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+            color: #9CA3AF; margin-top: 20px; margin-bottom: 10px; padding: 0 15px;
+        }
+
+        /* --- Main Content --- */
+        .content { flex-grow: 1; padding: 20px 40px; overflow-y: auto; }
+        .header { display: none; justify-content: flex-end; align-items: center; margin-bottom: 10px; }
+        .hamburger-menu { cursor: pointer; padding: 10px; }
+        .hamburger-menu .bar {
+            display: block; width: 25px; height: 3px;
+            background-color: var(--text-secondary); margin: 5px 0; transition: 0.4s;
+        }
+        .page { display: none; }
+        .page.active { display: block; }
+        h1 { font-size: 30px; font-weight: 700; color: var(--text-primary); margin-top: 0; }
+        h4 { font-weight: 600; }
+
+        /* --- Components --- */
+        .btn {
+            background-color: var(--primary-color); color: white; padding: 10px 15px;
+            border: none; border-radius: 6px; cursor: pointer; font-size: 14px;
+            font-weight: 500; transition: all 0.2s ease;
+            box-shadow: var(--card-shadow);
+        }
+        .btn:hover {
+            background-color: var(--accent-color);
+            color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--card-shadow-hover);
+        }
+        .grid { display: grid; gap: 24px; }
+        .card {
+            background-color: var(--card-bg-color); border-radius: 12px; padding: 20px;
+            box-shadow: var(--card-shadow); border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+        .card:hover {
+             transform: translateY(-2px);
+             box-shadow: var(--card-shadow-hover);
+        }
+
+
+        /* --- Dashboard --- */
+        .d3-chart-container { width: 100%; min-height: 380px; display: flex; flex-direction: column; }
+        .d3-chart-container h4 { flex-shrink: 0; margin-bottom: 15px; }
+        .d3-chart-svg-wrapper { flex-grow: 1; width: 100%; height: 100%; }
+        .d3-chart-svg-wrapper svg { width: 100%; height: 100%; }
+        .axis-label { font-size: 12px; fill: var(--text-secondary); text-anchor: middle; font-weight: 500;}
+        .d3-tooltip {
+            position: absolute; text-align: center; padding: 8px; font-size: 12px;
+            background: var(--card-bg-color); border: 1px solid var(--border-color);
+            border-radius: 6px; pointer-events: none; opacity: 0;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        /* --- Integrations --- */
+        .integration-card { display: flex; align-items: center; gap: 20px; }
+        .integration-card .logo { width: 40px; height: 40px; }
+        .integration-info { flex-grow: 1; }
+        .integration-info h4 { margin: 0 0 5px 0; }
+        .status { font-size: 14px; font-weight: 500; }
+        .status.connected { color: #16A34A; }
+        .status.disconnected { color: #DC2626; }
+        .btn-secondary { background-color: #F3F4F6; color: var(--text-primary); }
+        .btn-secondary:hover { background-color: #E5E7EB; color: var(--primary-color); }
+
+        /* --- Settings --- */
+        .settings-section { margin-bottom: 40px; }
+        .settings-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; font-size: 22px; font-weight: 600;}
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; color: var(--text-primary);}
+        .form-group input {
+            width: 100%; max-width: 400px; padding: 10px; border: 1px solid #D1D5DB;
+            border-radius: 6px; background-color: #fff; font-size: 14px;
+        }
+        .form-group input:focus { border-color: var(--accent-color); outline: 2px solid var(--accent-color); }
+        .upload-area { border: 2px dashed var(--border-color); border-radius: 8px; padding: 40px; text-align: center; background: #fafafa; }
+        
+        /* --- Content Granules --- */
+        .granule-card { background-color: #fff; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+        .granule-card .placeholder { height: 150px; background-color: #F9FAFB; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-weight: 500; }
+        .granule-card .card-content { padding: 15px; }
+        .granule-card h4, .granule-card p { cursor: text; }
+        .editable-input { width: 95%; padding: 5px; font: inherit; border-radius: 4px; border: 1px solid var(--accent-color); }
+
+
+        /* --- Map Journeys --- */
+        .journey-editor { 
+            display: flex; 
+            gap: 20px; 
+            min-height: 950px;
+        }
+        #mermaid-code { 
+            width: 50%; height: 100%; font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace; font-size: 14px; 
+            border: 1px solid var(--border-color); resize: none; padding: 15px; 
+            box-sizing: border-box; border-radius: 8px; background-color: #F9FAFB;
+        }
+        #mermaid-diagram { 
+            width: 50%; border: 1px solid var(--border-color); 
+            background: var(--card-bg-color); padding: 20px; overflow: auto; 
+            box-sizing: border-box; border-radius: 12px;
+        }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr !important; }
+             .journey-editor { flex-direction: column; height: auto; }
+            #mermaid-code, #mermaid-diagram { width: 100%; min-height: 500px;}
+        }
+        @media (max-width: 768px) {
+            .header { display: flex; }
+            .sidebar { position: fixed; left: 0; top: 0; height: 100%; transform: translateX(-100%); }
+            .main-container.sidebar-visible .sidebar { transform: translateX(0); }
+            .content { padding: 20px; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="d3-tooltip"></div>
+    <div class="main-container" data-se-id="main-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" data-se-id="sidebar-navigation">
+            <div class="sidebar-header" data-se-id="app-logo">GranularContent</div>
+            <div class="sidebar-nav">
+                <ul>
+                    <li><a href="#dashboards" class="nav-link active" data-se-id="nav-dashboards">Dashboards</a></li>
+                    <li><a href="#integrations" class="nav-link" data-se-id="nav-integrations">Integrations</a></li>
+                    <li><a href="#settings" class="nav-link" data-se-id="nav-settings">Settings</a></li>
+                </ul>
+                <div class="nav-section-title" data-se-id="nav-section-authoring">Authoring</div>
+                <ul>
+                    <li><a href="#granules" class="nav-link" data-se-id="nav-granules">Content Granules</a></li>
+                    <li><a href="#journeys" class="nav-link" data-se-id="nav-journeys">Map Journeys</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content" data-se-id="main-content-area">
+            <div class="header" data-se-id="top-header">
+                <div class="hamburger-menu" data-se-id="hamburger-menu">
+                    <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+                </div>
+            </div>
+
+            <!-- Dashboards Page -->
+            <div id="dashboards" class="page active">
+                <h1 data-se-id="page-title-dashboards">Dashboard</h1>
+                <div class="grid dashboard-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="card d3-chart-container" data-se-id="chart-donut">
+                        <h4 data-se-id="chart-title-donut">Guide Types Distribution</h4>
+                        <div id="d3-donut-chart" class="d3-chart-svg-wrapper"></div>
+                    </div>
+                    <div class="card d3-chart-container" data-se-id="chart-funnel">
+                        <h4 data-se-id="chart-title-funnel">Onboarding Funnel Completion</h4>
+                        <div id="d3-funnel-chart" class="d3-chart-svg-wrapper"></div>
+                    </div>
+                    <div class="card d3-chart-container" data-se-id="chart-timeseries">
+                        <h4 data-se-id="chart-title-timeseries">Monthly Active Users (MAU)</h4>
+                        <div id="d3-timeseries-chart" class="d3-chart-svg-wrapper"></div>
+                    </div>
+                    <div class="card d3-chart-container" data-se-id="chart-scatter">
+                        <h4 data-se-id="chart-title-scatter">User Engagement vs. Satisfaction</h4>
+                        <div id="d3-scatter-plot" class="d3-chart-svg-wrapper"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Integrations Page -->
+            <div id="integrations" class="page">
+                <h1 data-se-id="page-title-integrations">Integrations</h1>
+                <div class="grid" style="grid-template-columns: 1fr;">
+                    <div class="card integration-card" data-se-id="integration-salesforce">
+                        <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4Ij48cGF0aCBmaWxsPSIjMDBBMURDIiBkPSJNNjQgMTI4YzM1LjMgMCA2NC0yOC43IDY0LTY0UzEwMC4zIDAgNjQgMCAwIDI4LjcgMCA2NGMwIDM1LjMgMjguNyA2NCA2NCA2NHoiLz48cGF0aCBmaWxsPSIjRkZGIiBkPSJNNjQuNyA4OS4xYy0xOC44IDAtMzIuMy0xMi4zLTM0LjItMjkuMWgtLjFjLS4zIDAtLjUgLjEtLjUgLjNoLS4xYy0uMS0uMy0uMS0uNS0uMS0uOHYtLjFoLjFjLjEtLjEgLjEtLjIgLjItLjNoMTcuN2MuMyAxLjguNyAzLjUgMS4zIDUuM2gxLjRjNS4yLTEwLjQgMTQuNC0xNi45IDI0LjgtMTYuOWM3LjEgMCAxMy4zIDIuMSAxNy44IDUuOWM0LjMgMy43IDYuOSA5LjYgNi45IDE2LjVjMCAxMS4yLTcuNCAxOS40LTE5LjIgMTkuNGMtNy44IDAtMTMuOS00LTE3LjEtMTAuM2gtMS40Yy0xLjIgMi41LTIuNyA0LjctNC40IDYuNWMtMy4xIDMuNC03LjYgNS4xLTEyLjggNS4xem0yMS4yLTE3LjJjMC00LjQtMi40LTcuOC02LjQtNy44Yy00LjQgMC04IDEuOC0xMC44IDcuMmMtLjkgMy0xLjMgNS45LTEuMyA4LjljMCAxLjQgLjEgMi43LjMgMy44YzQgMCA3LjEtMi44IDkuMi01LjZDNzIuOSA3OS41IDc0LjUgNzUgODYgNzEuOXptLTM4LjktMTUuNWMuMi43LjUgMS4zLjcgMS45YzMuMi02LjkgOS4zLTExLjQgMTYtMTEuNGM0LjEgMCA4IDIuMyA5LjYgMy44YzEuNC0zLjkgMy43LTYuOSA3LjEtOC44Yy0zLjctMy04LjQtNC42LTEzLjgtNC42Yy0xMS4yIDAtMjAuMiA2LjktMjIuOSAxNmMtLjQuMS0uNi40LTEuMS44bDEuNS4zLTEuNy0uNHoiLz48L3N2Zz4=" alt="Salesforce Logo">
+                        <div class="integration-info">
+                            <h4>Salesforce</h4>
+                            <p class="status connected" data-se-id="status-salesforce">Connected</p>
+                        </div>
+                        <button class="btn btn-secondary" data-se-id="btn-configure-salesforce">Configure</button>
+                    </div>
+                    <div class="card integration-card" data-se-id="integration-zendesk">
+                        <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4Ij48cGF0aCBmaWxsPSIjMDMwNTMwIiBkPSJNMCAwaDEyOHYxMjJIMHoiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNNjMuOCA4NkwzMyA4My4zVjYwLjVoMzAuOHpNNjMuOCA1Ni44SDMzVjM4LjNsMzAuOCA0LjV6TTkxIDM4LjNsLTMwLjggNC41VjU3aDMwLjh6TTkxIDYwLjVILTYzLjhWODNMOTEgODYiLz48L3N2Zz4=" alt="Zendesk Logo">
+                        <div class="integration-info">
+                            <h4>Zendesk</h4>
+                            <p class="status disconnected" data-se-id="status-zendesk">Not Connected</p>
+                        </div>
+                        <button class="btn" data-se-id="btn-connect-zendesk">Connect</button>
+                    </div>
+                    <div class="card integration-card" data-se-id="integration-jira">
+                        <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4Ij48cGF0aCBmaWxsPSIjMDA1MkNDIiBkPSJNNjQgMTI4YzM1LjMgMCA2NC0yOC4yIDY0LTY0UzEwMC4zIDAgNjQgMCAwIDI4LjcgMCA2NGMwIDM1LjMgMjguNyA2NCA2NCA2NHoiLz48cGF0aCBmaWxsPSIjRkZGIiBkPSJNNjAuMyA2Ny43TDExLjIgMTguNmMtMy41IDYuMi01LjYgMTMuNC01LjYgMjEuMmMwIDEzLjkgNi4xIDI2LjUgMTYgMzUuMmwxMS4xLTExLjFsMjcuNi0yNy42ek02Ny43IDYwLjNMMTExLjEgMTEuMWMtOC43LTkuOS0yMS4zLTE2LTM1LjItMTZDMzQuNS0uMiAyMi41IDMuNSAxMy4yIDEwLjJsNDQuNSAzMy4ybDEwLTguN3ptMCAxNC4ybC0xMCA4LjdsLTkuOS05LjlsLTI2IDI2Yy41LjQuOS45IDEuNCAxLjNsMjAuNS0yMC42bDkuOSA5LjlsMTAuMi04LjhsMzIuMSAzMi4xYzUtMy41IDkuMy04IDEyLjQtMTMuMkw2Ny43IDc0LjV6bS03LjQgNy40bC0xNC4yIDE0LjJjNi4zIDIgMTMuMSAzIDE5LjkgMyAxOS40IDAgMzYuMi0xMC41IDQ0LjktMjYuNWwtNDQuOC00NC44bC01LjggNS44eiIvPjwvc3ZnPg==" alt="Jira Logo">
+                        <div class="integration-info">
+                            <h4>Jira Software</h4>
+                            <p class="status connected" data-se-id="status-jira">Connected</p>
+                        </div>
+                        <button class="btn btn-secondary" data-se-id="btn-configure-jira">Configure</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div id="settings" class="page">
+                 <h1 data-se-id="page-title-settings">Settings</h1>
+                <div class="settings-section" data-se-id="settings-profile">
+                    <h2>User Profile</h2>
+                    <div class="form-group"><label for="name">Full Name</label><input type="text" id="name" value="Jorge Cano" data-se-id="input-name"></div>
+                    <div class="form-group"><label for="email">Email</label><input type="email" id="email" value="jorge@fullstory.com" data-se-id="input-email"></div>
+                    <button class="btn" data-se-id="btn-save-profile">Save Profile</button>
+                </div>
+                <div class="settings-section" data-se-id="settings-account">
+                    <h2>Account Info</h2>
+                    <div class="form-group"><label for="company">Company Name</label><input type="text" id="company" value="GranularContent" data-se-id="input-company"></div>
+                    <div class="form-group"><label for="plan">Current Plan</label><input type="text" id="plan" value="Enterprise" readonly data-se-id="input-plan"></div>
+                </div>
+                <div class="settings-section" data-se-id="settings-billing">
+                    <h2>Billing Information</h2>
+                    <div class="form-group"><label for="cc">Credit Card</label><input type="text" id="cc" value="**** **** **** 4242" data-se-id="input-cc"></div>
+                    <button class="btn" data-se-id="btn-update-billing">Update Card</button>
+                </div>
+                <div class="settings-section" data-se-id="settings-documents">
+                    <h2>Upload Documents</h2>
+                    <div class="upload-area" data-se-id="area-doc-upload">
+                        <p>Drag & drop files here or click to upload</p>
+                        <button class="btn" data-se-id="btn-upload-doc">Upload</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content Granules Page -->
+            <div id="granules" class="page">
+                <h1 data-se-id="page-title-granules">Content Granules</h1>
+                <div class="template-controls" style="margin-bottom:20px;">
+                    <button class="btn" onclick="createNewGranule()" data-se-id="button-create-granule">Create New Granule</button>
+                </div>
+                <div class="grid" id="granule-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                </div>
+            </div>
+
+            <!-- Map Journeys Page -->
+            <div id="journeys" class="page">
+                <h1 data-se-id="page-title-journeys">Map User Journeys</h1>
+                <div class="journey-editor">
+                    <textarea id="mermaid-code" data-se-id="mermaid-editor"></textarea>
+                    <div id="mermaid-diagram" data-se-id="mermaid-canvas"></div>
+                </div>
+                <br>
+                <button class="btn" id="render-btn" data-se-id="btn-render-journey">Render Chart</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const d3Tooltip = d3.select(".d3-tooltip");
+        mermaid.initialize({ startOnLoad: true });
+
+        // --- DEBOUNCE FUNCTION for smooth resizing ---
+        function debounce(func, wait = 150) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // --- Global Navigation & Routing ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('.nav-link');
+            const pages = document.querySelectorAll('.page');
+            const hamburger = document.querySelector('.hamburger-menu');
+            const mainContainer = document.querySelector('.main-container');
+
+            function showPage(pageId) {
+                pages.forEach(page => page.classList.remove('active'));
+                let targetPage = document.getElementById(pageId);
+                if (!targetPage) {
+                    pageId = 'dashboards';
+                    targetPage = document.getElementById(pageId);
+                }
+                targetPage.classList.add('active');
+
+                links.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === `#${pageId}`) {
+                        link.classList.add('active');
+                    }
+                });
+
+                if (pageId === 'dashboards') {
+                    setTimeout(renderAllCharts, 50);
+                }
+                if (pageId === 'journeys') {
+                    initializeMermaidEditor();
+                }
+                if (pageId === 'granules' && !document.getElementById('granule-grid').innerHTML.trim()) {
+                    populateInitialGranules();
+                }
+            }
+
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const pageId = this.getAttribute('href').substring(1);
+                    window.location.hash = pageId;
+                    mainContainer.classList.remove('sidebar-visible');
+                });
+            });
+
+            function handleHashChange() {
+                const pageId = window.location.hash.substring(1) || 'dashboards';
+                showPage(pageId);
+            }
+
+            window.addEventListener('hashchange', handleHashChange);
+            handleHashChange();
+
+            hamburger.addEventListener('click', () => {
+                mainContainer.classList.toggle('sidebar-visible');
+            });
+
+            const debouncedRender = debounce(() => {
+                const currentPage = window.location.hash.substring(1) || 'dashboards';
+                if (currentPage === 'dashboards') {
+                    renderAllCharts();
+                }
+            });
+            window.addEventListener('resize', debouncedRender);
+        });
+
+        // --- D3.js CHART RENDERING ---
+        function renderAllCharts() {
+            drawDonutChart();
+            drawTimeSeriesChart();
+            drawFunnelChart();
+            drawScatterPlot();
+        }
+
+        function getChartDimensions(containerId) {
+            const wrapper = document.querySelector(containerId);
+            if (!wrapper || wrapper.clientWidth === 0) return { width: 0 };
+            const width = wrapper.clientWidth;
+            const height = wrapper.clientHeight;
+            const margin = { top: 10, right: 30, bottom: 50, left: 60 };
+            return {
+                width: width - margin.left - margin.right,
+                height: height - margin.top - margin.bottom,
+                margin, fullWidth: width, fullHeight: height
+            };
+        }
+
+        function drawDonutChart() {
+            const containerId = '#d3-donut-chart';
+            const dims = getChartDimensions(containerId);
+            if (dims.width <= 0) return;
+            d3.select(containerId).select("svg").remove();
+            
+            const data = [{label: "Product Tours", value: 483}, {label: "NPS Surveys", value: 891}, {label: "Feature Popups", value: 215}];
+            const radius = Math.min(dims.width, dims.height) / 2;
+            
+            const svg = d3.select(containerId).append("svg")
+                .attr("width", dims.fullWidth).attr("height", dims.fullHeight)
+                .append("g").attr("transform", `translate(${dims.fullWidth / 2}, ${dims.fullHeight / 2})`);
+
+            const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
+            const color = d3.scaleOrdinal(data.map(d=>d.label), ["#4B5563", "#9CA3AF", accentColor]);
+            const pie = d3.pie().value(d => d.value).sort(null);
+            const arc = d3.arc().innerRadius(radius * 0.55).outerRadius(radius * 0.9);
+
+            svg.selectAll('path')
+               .data(pie(data)).join('path')
+               .attr('d', arc)
+               .attr('fill', d => color(d.data.label))
+               .attr("stroke", "white").style("stroke-width", "3px");
+
+            // FIXED: Set text color based on the slice color for visibility
+            svg.selectAll('text').data(pie(data)).join('text')
+               .text(d => d.data.label)
+               .attr('transform', d => `translate(${arc.centroid(d)})`)
+               .style('text-anchor', 'middle')
+               .style('font-size', '12px')
+               .style('font-weight', '500')
+               .style('fill', d => d.data.label === "Feature Popups" ? '#374151' : 'white');
+        }
+
+        function drawTimeSeriesChart() {
+            const containerId = '#d3-timeseries-chart';
+            const dims = getChartDimensions(containerId);
+            if (dims.width <= 0) return;
+            d3.select(containerId).select("svg").remove();
+            const data = d3.range(6).map(i => ({ date: d3.timeParse("%Y-%m")(`2023-${8+i}`), value: 1850 + (i * 250) + (Math.random() - 0.5) * 500 }));
+
+            const svg = d3.select(containerId).append("svg")
+                .attr("width", dims.fullWidth).attr("height", dims.fullHeight)
+                .append("g").attr("transform", `translate(${dims.margin.left},${dims.margin.top})`);
+            
+            const x = d3.scaleTime().domain(d3.extent(data, d => d.date)).range([0, dims.width]);
+            svg.append("g").attr("transform", `translate(0, ${dims.height})`).call(d3.axisBottom(x).ticks(d3.timeMonth.every(1)).tickFormat(d3.timeFormat("%b")));
+
+            const y = d3.scaleLinear().domain([0, d3.max(data, d => d.value) * 1.1]).range([dims.height, 0]);
+            svg.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d3.format("~s")));
+            
+            svg.append("path").datum(data)
+                .attr("fill", "#F9FAFB").attr("stroke", "none")
+                .attr("d", d3.area().x(d => x(d.date)).y0(dims.height).y1(d => y(d.value)));
+            svg.append("path").datum(data)
+                .attr("fill", "none").attr("stroke", "#111827").attr("stroke-width", 2)
+                .attr("d", d3.line().x(d => x(d.date)).y(d => y(d.value)));
+            
+            svg.append("text").attr("class", "axis-label").attr("x", dims.width / 2).attr("y", dims.height + 40).text("Month");
+            svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("x", -dims.height / 2).attr("y", -45).text("Active Users");
+        }
+        
+        function drawFunnelChart() {
+            const containerId = '#d3-funnel-chart';
+            const dims = getChartDimensions(containerId);
+            if (dims.width <= 0) return;
+            d3.select(containerId).select("svg").remove();
+
+            const data = [
+                { stage: 'Saw Welcome Tour', value: 8520 }, { stage: 'Completed Step 1', value: 7130 },
+                { stage: 'Completed Step 2', value: 6580 }, { stage: 'Clicked Final CTA', value: 4320 }
+            ];
+            const svg = d3.select(containerId).append("svg")
+                .attr("width", dims.fullWidth).attr("height", dims.fullHeight)
+                .append("g").attr("transform", `translate(${dims.margin.left},${dims.margin.top})`);
+            
+            const colorScale = d3.scaleOrdinal(data.map(d=>d.stage), d3.schemeGreys[5].slice(1).reverse());
+            const sectionHeight = dims.height / data.length;
+            const topWidth = dims.width;
+
+            for (let i = 0; i < data.length; i++) {
+                const d = data[i];
+                const top_y = i * sectionHeight;
+                const top_x_left = (topWidth - (topWidth * (d.value / data[0].value))) / 2;
+                const top_x_right = top_x_left + (topWidth * (d.value / data[0].value));
+                
+                let bottom_y = (i + 1) * sectionHeight;
+                let bottom_x_left, bottom_x_right;
+
+                if (i < data.length - 1) {
+                    bottom_x_left = (topWidth - (topWidth * (data[i+1].value / data[0].value))) / 2;
+                    bottom_x_right = bottom_x_left + (topWidth * (data[i+1].value / data[0].value));
+                } else { bottom_x_left = top_x_left; bottom_x_right = top_x_right; }
+                
+                svg.append('polygon')
+                    .attr('points', `${top_x_left},${top_y} ${top_x_right},${top_y} ${bottom_x_right},${bottom_y} ${bottom_x_left},${bottom_y}`)
+                    .attr('fill', colorScale(d.stage));
+                svg.append('text')
+                    .text(`${d.stage}: ${d.value.toLocaleString()}`)
+                    .attr('x', topWidth / 2)
+                    .attr('y', top_y + sectionHeight / 2 + 5)
+                    .attr('text-anchor', 'middle').attr('fill', i < 2 ? 'white' : '#333').attr('font-size', '12px').attr('font-weight', 500);
+            }
+        }
+
+        function drawScatterPlot() {
+            const containerId = '#d3-scatter-plot';
+            const dims = getChartDimensions(containerId);
+            if (dims.width <= 0) return;
+            d3.select(containerId).select("svg").remove();
+            const data = d3.range(100).map(() => ({ engagement: Math.random() * 100, satisfaction: Math.random() * 80 + 20, timeInApp: Math.random() * 50 }));
+
+            const svg = d3.select(containerId).append("svg")
+                .attr("width", dims.fullWidth).attr("height", dims.fullHeight)
+                .append("g").attr("transform", `translate(${dims.margin.left},${dims.margin.top})`);
+            
+            const x = d3.scaleLinear().domain([0, 100]).range([0, dims.width]);
+            svg.append("g").attr("transform", `translate(0, ${dims.height})`).call(d3.axisBottom(x));
+
+            const y = d3.scaleLinear().domain([0, 100]).range([dims.height, 0]);
+            svg.append("g").call(d3.axisLeft(y));
+
+            const z = d3.scaleLinear().domain([0, 50]).range([2.5, 12]);
+
+            svg.selectAll("circle").data(data).join("circle")
+                .attr("cx", d => x(d.engagement))
+                .attr("cy", d => y(d.satisfaction))
+                .attr("r", d => z(d.timeInApp))
+                .style("fill", getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim())
+                .style("opacity", 0.6)
+                .on("mouseover", (event, d) => {
+                    d3Tooltip.transition().duration(200).style("opacity", .9);
+                    d3Tooltip.html(`Engagement: ${Math.round(d.engagement)}<br/>Satisfaction: ${Math.round(d.satisfaction)}<br/>Time: ${Math.round(d.timeInApp)}m`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", () => d3Tooltip.transition().duration(500).style("opacity", 0));
+                
+            svg.append("text").attr("class", "axis-label").attr("x", dims.width / 2).attr("y", dims.height + 40).text("Engagement Score");
+            svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("x", -dims.height / 2).attr("y", -45).text("Satisfaction (CSAT)");
+        }
+
+        // --- Content Granules Page ---
+        function populateInitialGranules() {
+            const grid = document.getElementById('granule-grid');
+            grid.innerHTML = `
+                <div class="granule-card" data-se-id="granule-card-welcome">
+                    <div class="placeholder">Welcome Guide</div>
+                    <div class="card-content">
+                        <h4 onclick="makeEditable(this)" data-se-id="granule-title-welcome">New User Welcome Tour</h4>
+                        <p onclick="makeEditable(this)" data-se-id="granule-desc-welcome">A 3-step guide for first-time users.</p>
+                    </div>
+                </div>
+                <div class="granule-card" data-se-id="granule-card-feature">
+                    <div class="placeholder">Feature Announcement</div>
+                    <div class="card-content">
+                        <h4 onclick="makeEditable(this)" data-se-id="granule-title-feature">Feature Launch Popup</h4>
+                        <p onclick="makeEditable(this)" data-se-id="granule-desc-feature">A modal to announce new functionality.</p>
+                    </div>
+                </div>`;
+        }
+        function createNewGranule() {
+            const grid = document.getElementById('granule-grid');
+            const newCard = document.createElement('div');
+            newCard.classList.add('granule-card');
+            newCard.setAttribute('data-se-id', `granule-card-new-${Date.now()}`);
+            newCard.innerHTML = `
+                <div class="placeholder">New Granule</div>
+                <div class="card-content">
+                    <h4 onclick="makeEditable(this)" data-se-id="granule-title-new">Click to Edit Title</h4>
+                    <p onclick="makeEditable(this)" data-se-id="granule-desc-new">A new granule description.</p>
+                </div>`;
+            grid.appendChild(newCard);
+        }
+        function makeEditable(element) {
+            const originalText = element.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = originalText;
+            input.classList.add('editable-input');
+            input.addEventListener('blur', function() {
+                element.textContent = this.value;
+                this.replaceWith(element);
+            });
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') this.blur(); });
+            element.replaceWith(input);
+            input.select();
+        }
+
+        // --- Mermaid.js Journey Mapping ---
+        function initializeMermaidEditor() {
+            const editor = document.getElementById('mermaid-code');
+            const renderBtn = document.getElementById('render-btn');
+            const diagram = document.getElementById('mermaid-diagram');
+            const defaultFlow = 
+`%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#F9FAFB', 'primaryTextColor': '#1F2937', 'lineColor': '#6B7280', 'fontSize': '14px', 'accentColor': '#FBBF24'}}}%%
+flowchart TD
+A[Start: User signs up] --> B{Has completed profile?};
+B -- Yes --> C[Show 'Advanced Features' tour];
+B -- No --> D[Launch 'Complete Your Profile' guide];
+C --> E[End: Onboarding complete];
+D --> F{Clicked guide CTA?};
+F -- Yes --> G[Navigate to profile page];
+F -- No --> H[Send reminder survey in 24h];
+G --> E;
+H --> E;
+`;
+            if (!editor.value) editor.value = defaultFlow;
+            renderMermaid();
+            renderBtn.addEventListener('click', renderMermaid);
+
+            function renderMermaid() {
+                try {
+                    diagram.innerHTML = editor.value;
+                    diagram.removeAttribute('data-processed');
+                    mermaid.init(undefined, diagram);
+                } catch(e) { console.error("Mermaid rendering error:", e); }
+            }
+        }
+    </script>
+</body>
+</html>
